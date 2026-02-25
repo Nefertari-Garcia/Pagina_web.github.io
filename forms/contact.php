@@ -1,42 +1,47 @@
 <?php
-  /**
-  * Requires the "PHP Email Form" library
-  * The "PHP Email Form" library is available only in the pro version of the template
-  * The library should be uploaded to: vendor/php-email-form/php-email-form.php
-  * For more info and help: https://bootstrapmade.com/php-email-form/
-  */
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  http_response_code(405);
+  exit('Metodo no permitido');
+}
 
-  // Replace contact@example.com with your real receiving email address
-  $receiving_email_address = 'contact@example.com';
+$nombre   = trim($_POST['nombre'] ?? '');
+$email    = trim($_POST['email'] ?? '');
+$telefono = trim($_POST['telefono'] ?? '');
+$motivo   = trim($_POST['motivo'] ?? '');
+$mensaje  = trim($_POST['mensaje'] ?? '');
 
-  if( file_exists($php_email_form = '../assets/vendor/php-email-form/php-email-form.php' )) {
-    include( $php_email_form );
-  } else {
-    die( 'Unable to load the "PHP Email Form" Library!');
-  }
+if ($nombre === '' || $email === '' || $motivo === '' || $mensaje === '') {
+  exit('Faltan campos obligatorios');
+}
 
-  $contact = new PHP_Email_Form;
-  $contact->ajax = true;
-  
-  $contact->to = $receiving_email_address;
-  $contact->from_name = $_POST['name'];
-  $contact->from_email = $_POST['email'];
-  $contact->subject = $_POST['subject'];
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+  exit('Email invalido');
+}
 
-  // Uncomment below code if you want to use SMTP to send emails. You need to enter your correct SMTP credentials
-  /*
-  $contact->smtp = array(
-    'host' => 'example.com',
-    'username' => 'example',
-    'password' => 'pass',
-    'port' => '587'
-  );
-  */
+$host = '127.0.0.1';
+$db   = 'contactos_porfolio';
+$user = 'root';
+$pass = 'nefertari25';
 
-  $contact->add_message( $_POST['name'], 'From');
-  $contact->add_message( $_POST['email'], 'Email');
-  isset($_POST['phone']) && $contact->add_message($_POST['phone'], 'Phone');
-  $contact->add_message( $_POST['message'], 'Message', 10);
+try {
+  $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+  ]);
 
-  echo $contact->send();
-?>
+  $sql = "INSERT INTO contactos (Nombre, Email, Telefono, Motivo, Mensaje)
+          VALUES (:nombre, :email, :telefono, :motivo, :mensaje)";
+  $stmt = $pdo->prepare($sql);
+
+  $stmt->execute([
+    ':nombre' => $nombre,
+    ':email' => $email,
+    ':telefono' => $telefono,
+    ':motivo' => $motivo,
+    ':mensaje' => $mensaje
+  ]);
+
+  echo 'OK';
+} catch (PDOException $e) {
+  echo 'Error al guardar: ' . $e->getMessage();
+  echo 'Error al guardar';
+}
